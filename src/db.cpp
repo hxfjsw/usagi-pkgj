@@ -395,6 +395,38 @@ std::string format_display_name(
         full_name = fmt::format("{} [{}]", full_name, fw_version);
     return full_name;
 }
+
+std::string localized_display_name(
+        const char* localized,
+        std::string_view catalog_name,
+        const std::string& app_version,
+        const std::string& fw_version)
+{
+    std::string qualifiers;
+    while (true)
+    {
+        const auto last = catalog_name.find_last_not_of(" \t");
+        if (last == std::string_view::npos ||
+            (catalog_name[last] != ')' && catalog_name[last] != ']'))
+            break;
+
+        const auto first =
+                catalog_name.rfind(catalog_name[last] == ')' ? '(' : '[', last);
+        if (first == std::string_view::npos || first == 0)
+            break;
+
+        const auto qualifier = catalog_name.substr(first, last - first + 1);
+        catalog_name.remove_suffix(catalog_name.size() - first);
+        // The firmware version is already appended by format_display_name.
+        if (fw_version > "3.60" &&
+            (qualifier == "(3.61+!)" || qualifier == "(3.61+)" ||
+             qualifier == fmt::format("[{}]", fw_version)))
+            continue;
+        qualifiers = fmt::format(" {}{}", qualifier, qualifiers);
+    }
+    return format_display_name(
+            fmt::format("{}{}", localized, qualifiers), app_version, fw_version);
+}
 }
 
 void TitleDatabase::reload(
@@ -509,8 +541,9 @@ void TitleDatabase::reload(
                         /*selected=*/false,
                         /*description=*/"",
                         *localized_name
-                                ? format_display_name(
+                                ? localized_display_name(
                                           localized_name,
+                                          name,
                                           app_version,
                                           fw_version)
                                 : "",

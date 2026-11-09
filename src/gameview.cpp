@@ -352,6 +352,9 @@ void GameView::render()
 
     ImGui::PushTextWrapPos(0.f); // wrap at right edge of this child
 
+    if (!_item->localized_name.empty())
+        ImGui::TextDisabled("Catalog title: %s", _item->name.c_str());
+
     if (is_vita_mode())
     {
         // ── Metadata rows ────────────────────────────────────────────────────
