@@ -63,9 +63,14 @@ Other modes keep the classic text list. The menu option is still named
 `ImageFetcher` (`src/imagefetcher.{hpp,cpp}`) builds an ordered source list per
 title:
 
-1. HexFlow-Covers PNG art from the upstream repository:
+1. HexFlow-Covers PNG art from the JSDMirror China CDN. Override the base URL
+   with `cover_mirror` or use `cover_mirror off` to skip the CDN.
+2. HexFlow-Covers PNG art from the upstream repository:
    `https://raw.githubusercontent.com/Andiweli/HexFlow-Covers/main/Covers/...`
-2. PlayStation Store JPEG cover as a fallback.
+3. PlayStation Store JPEG cover as a fallback.
+
+Each source gets up to three seconds to connect and five seconds for the
+entire transfer. The CDN and upstream share the same PNG cache.
 
 The HexFlow folder is mode-aware:
 

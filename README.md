@@ -57,8 +57,10 @@ The PS Vita, PSP and PSX games lists are browsed as a grid of cover art by defau
 
 Covers are fetched on demand, one at a time, and cached locally so they only need to download once:
 
-1. By default, box art from the [HexFlow-Covers][hexflow_covers] project is tried first (vertical for PS Vita/PSP, square for PSX).
-2. If a title isn't in that set, it falls back to the cover from the PlayStation Store.
+1. The JSDMirror China CDN serves [HexFlow-Covers][hexflow_covers] box art (vertical for PS Vita/PSP, square for PSX).
+2. If the mirror fails, the app tries the original HexFlow source, then PlayStation Store.
+
+封面优先走 JSDMirror 国内镜像，下载后缓存在本机。也可以将离线封面按 `游戏ID.png`（例如 `PCSA00029.png`）放入 `ux0:usagi-pkgj/cover`。
 
 # Configuration
 
@@ -70,6 +72,7 @@ For inherited PKGj options such as `url_games`, `url_dlcs`, `url_psp_games`, and
 | --- | --- |
 | `grid_view 0` | Show the games list as a plain text list instead of the cover-art grid (grid is the default) |
 | `thumbnail_folder <path>` | Local folder covers are cached in (default: `ux0:usagi-pkgj/cover`) |
+| `cover_mirror <url>` | Replace the default mirror with a base URL containing `PSVita/`, `PSP/`, and `PS1/`. Set `cover_mirror off` to use the original sources directly. |
 | `install_psp_as_pbp 1` | Install PSP games as EBOOT.EBP files instead of ISO files (see Troubleshooting) |
 | `install_psp_psx_location uma0:` | Install PSP and PSX games on `uma0:` |
 

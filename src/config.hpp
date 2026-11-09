@@ -35,6 +35,8 @@ typedef struct Config
     //                    Leave empty to use the default: ux0:usagi-pkgj/cover
     // thumbnail_size   : panel size preset — 0=off, 1=small, 2=medium (default), 3=large
     std::string thumbnail_folder;
+    // Empty uses the default CDN. "off" uses the upstream cover sources.
+    std::string cover_mirror;
     int thumbnail_size{2};
 
     // Display settings

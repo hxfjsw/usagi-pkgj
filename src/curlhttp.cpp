@@ -16,6 +16,10 @@ CurlHttp::CurlHttp(const std::atomic<bool>* external_abort)
 {
 }
 
+CurlHttp::CurlHttp(Options options) : _options(options)
+{
+}
+
 CurlHttp::~CurlHttp()
 {
     if (_curl)
@@ -69,11 +73,11 @@ void CurlHttp::start(const std::string& url, uint64_t offset)
     curl_easy_setopt(_curl, CURLOPT_MAXREDIRS,        5L);
     curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYPEER,   0L);
     curl_easy_setopt(_curl, CURLOPT_SSL_VERIFYHOST,   0L);
-    curl_easy_setopt(_curl, CURLOPT_CONNECTTIMEOUT,   30L);
-    curl_easy_setopt(_curl, CURLOPT_TIMEOUT,          60L);
+    curl_easy_setopt(_curl, CURLOPT_CONNECTTIMEOUT,   _options.connect_timeout_seconds);
+    curl_easy_setopt(_curl, CURLOPT_TIMEOUT,          _options.timeout_seconds);
     curl_easy_setopt(_curl, CURLOPT_ERRORBUFFER,      _err_buf);
     curl_easy_setopt(_curl, CURLOPT_WRITEFUNCTION,    write_cb);
-    curl_easy_setopt(_curl, CURLOPT_WRITEDATA,        &_body);
+    curl_easy_setopt(_curl, CURLOPT_WRITEDATA,        this);
     curl_easy_setopt(_curl, CURLOPT_XFERINFOFUNCTION, progress_cb);
     curl_easy_setopt(_curl, CURLOPT_XFERINFODATA,     this);
     curl_easy_setopt(_curl, CURLOPT_NOPROGRESS,       0L);
@@ -140,9 +144,12 @@ CurlHttp::operator bool() const
 
 size_t CurlHttp::write_cb(char* ptr, size_t size, size_t nmemb, void* ud)
 {
-    auto* body = static_cast<std::vector<uint8_t>*>(ud);
-    body->insert(body->end(), ptr, ptr + size * nmemb);
-    return size * nmemb;
+    auto* self = static_cast<CurlHttp*>(ud);
+    const size_t bytes = size * nmemb;
+    if (bytes > self->_options.max_body_bytes - self->_body.size())
+        return 0;
+    self->_body.insert(self->_body.end(), ptr, ptr + bytes);
+    return bytes;
 }
 
 int CurlHttp::progress_cb(void* ud,

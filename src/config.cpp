@@ -329,6 +329,8 @@ Config pkgi_load_config()
                 config.comppack_url = value;
             else if (pkgi_stricmp(key, "thumbnail_folder") == 0)
                 config.thumbnail_folder = value;
+            else if (pkgi_stricmp(key, "cover_mirror") == 0)
+                config.cover_mirror = value;
             else if (pkgi_stricmp(key, "thumbnail_size") == 0)
                 config.thumbnail_size = static_cast<int>(
                         std::strtol(value, nullptr, 10));
@@ -404,6 +406,7 @@ void pkgi_save_config(const Config& config)
     SAVE_CONF("url_psp_games", psp_games_url, default_psp_games_url)
     SAVE_CONF("url_psp_dlcs", psp_dlcs_url, default_psp_dlcs_url)
     SAVE_CONF("url_comppack", comppack_url, default_comppack_url)
+    SAVE_CONF("cover_mirror", cover_mirror, "")
 #undef SAVE_CONF
     for (size_t i = 0; i < config.custom_entries.size(); i++)
     {

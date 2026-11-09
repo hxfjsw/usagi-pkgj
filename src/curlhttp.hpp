@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -16,10 +17,18 @@
 class CurlHttp : public Http
 {
 public:
+    struct Options
+    {
+        long connect_timeout_seconds = 30;
+        long timeout_seconds = 60;
+        size_t max_body_bytes = std::numeric_limits<size_t>::max();
+    };
+
     // external_abort: optional pointer to an atomic flag owned by the caller.
     // The progress callback checks it in addition to the local abort() call,
     // so an abort() signal set before start() is invoked is never lost.
     explicit CurlHttp(const std::atomic<bool>* external_abort = nullptr);
+    explicit CurlHttp(Options options);
     ~CurlHttp();
 
     void start(const std::string& url, uint64_t offset) override;
@@ -28,10 +37,12 @@ public:
 
     int get_status() override;
     int64_t get_length() override;
+    const std::vector<uint8_t>& body() const { return _body; }
 
     explicit operator bool() const override;
 
 private:
+    Options _options;
     std::vector<uint8_t> _body;
     size_t               _read_pos       = 0;
     long                 _status_code    = 0;
