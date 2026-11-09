@@ -21,6 +21,7 @@ extern "C"
 #include "logviewer.hpp"
 #include "menu.hpp"
 #include "browserview.hpp"
+#include "title_names.hpp"
 #include "update.hpp"
 #include "utils.hpp"
 #include "vitahttp.hpp"
@@ -35,6 +36,7 @@ extern "C"
 #ifdef PKGI_SIMULATOR
 #include <SDL2/SDL.h>
 extern SDL_Texture* sim_create_font_texture(const uint32_t* px, int w, int h);
+extern const char* sim_font_path(int* face_index);
 #endif
 
 #include <fmt/format.h>
@@ -742,7 +744,8 @@ void pkgi_do_main(Downloader& downloader, pkgi_input* input)
         item->selected = std::find(selected_items.begin(), selected_items.end(), item) != selected_items.end();
         pkgi_draw_text(col_name, y,
                 item->selected ? PKGI_COLOR_TEXT_SELECTED : PKGI_COLOR_TEXT,
-                item->name.c_str());
+                item->display_name().c_str(),
+                !item->localized_name.empty());
         pkgi_clip_remove();
 
         y += font_height + PKGI_MAIN_ROW_PADDING;
@@ -1769,40 +1772,60 @@ int main()
         // Build and load the texture atlas into a texture
         uint32_t* pixels = NULL;
         int width, height;
-#ifndef PKGI_SIMULATOR
-        auto build_imgui_ranges =
-                [](const ImWchar* base_ranges, ImVector<ImWchar>& ranges)
+        auto add_button_glyphs = [](ImFontGlyphRangesBuilder& builder)
         {
-            ImFontGlyphRangesBuilder builder;
-            builder.AddRanges(base_ranges);
             builder.AddChar(0x2573); // cross
             builder.AddChar(0x25CB); // circle
             builder.AddChar(0x25B3); // triangle
             builder.AddChar(0x25A1); // square
-            builder.BuildRanges(&ranges);
         };
 
+        ImVector<ImWchar> chinese_ranges;
+        ImFontGlyphRangesBuilder chinese_builder;
+        chinese_builder.AddRanges(io.Fonts->GetGlyphRangesChineseSimplifiedCommon());
+        for (const auto& entry : title_names::entries)
+            chinese_builder.AddText(entry.name);
+#ifndef PKGI_SIMULATOR
+        chinese_builder.BuildRanges(&chinese_ranges);
         ImVector<ImWchar> latin_ranges;
         ImVector<ImWchar> japanese_ranges;
-        build_imgui_ranges(io.Fonts->GetGlyphRangesDefault(), latin_ranges);
+        ImFontGlyphRangesBuilder latin_builder;
+        latin_builder.AddRanges(io.Fonts->GetGlyphRangesDefault());
+        add_button_glyphs(latin_builder);
+        latin_builder.BuildRanges(&latin_ranges);
         if (!io.Fonts->AddFontFromFileTTF(
                     "sa0:/data/font/pvf/ltn0.pvf",
                     20.0f,
                     0,
                     latin_ranges.Data))
             throw std::runtime_error("failed to load ltn0.pvf");
-        {
-            ImFontConfig merge_cfg;
-            merge_cfg.MergeMode = true;
-            build_imgui_ranges(
-                    io.Fonts->GetGlyphRangesJapanese(),
-                    japanese_ranges);
+        ImFontConfig merge_cfg;
+        merge_cfg.MergeMode = true;
+        merge_cfg.OversampleH = 1;
+        io.Fonts->AddFontFromFileTTF(
+                "sa0:/data/font/pvf/cn0.pvf",
+                20.0f,
+                &merge_cfg,
+                chinese_ranges.Data);
+        ImFontGlyphRangesBuilder japanese_builder;
+        japanese_builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
+        add_button_glyphs(japanese_builder);
+        japanese_builder.BuildRanges(&japanese_ranges);
+        io.Fonts->AddFontFromFileTTF(
+                "sa0:/data/font/pvf/jpn0.pvf",
+                20.0f,
+                &merge_cfg,
+                japanese_ranges.Data);
+#else
+        chinese_builder.AddRanges(io.Fonts->GetGlyphRangesJapanese());
+        add_button_glyphs(chinese_builder);
+        chinese_builder.BuildRanges(&chinese_ranges);
+        ImFontConfig font_cfg;
+        font_cfg.OversampleH = 1;
+        const char* font_path = sim_font_path(&font_cfg.FontNo);
+        if (*font_path)
             io.Fonts->AddFontFromFileTTF(
-                    "sa0:/data/font/pvf/jpn0.pvf",
-                    20.0f,
-                    &merge_cfg,
-                    japanese_ranges.Data);
-        }
+                    font_path, 17.0f, &font_cfg, chinese_ranges.Data);
 #endif
         io.Fonts->GetTexDataAsRGBA32((uint8_t**)&pixels, &width, &height);
 #ifndef PKGI_SIMULATOR

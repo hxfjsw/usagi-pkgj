@@ -33,6 +33,7 @@ extern "C"
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <dirent.h>
 #include <mutex>
@@ -54,6 +55,8 @@ SDL_Window*   g_sdl_window   = nullptr;
 // Private statics
 // ──────────────────────────────────────────────────────────────────────────────
 static TTF_Font* g_font       = nullptr;
+static std::string g_font_path;
+static int g_font_face;
 static bool      g_clipping   = false;
 static SDL_Rect  g_clip_rect  = {0, 0, VITA_WIDTH, VITA_HEIGHT};
 
@@ -131,8 +134,11 @@ static uint32_t sdl_key_to_button(SDL_Keycode k)
 // Font helpers
 // ──────────────────────────────────────────────────────────────────────────────
 // Preferred font search order (first that exists is used).
-// Include Japanese-capable fonts first so the simulator can render JPN text.
+// Prefer fonts with Simplified Chinese and Japanese coverage.
 static const char* FONT_CANDIDATES[] = {
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJKsc-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJKsc-Regular.ttf",
     "/usr/share/fonts/truetype/noto/NotoSansCJKjp-Regular.otf",
     "/usr/share/fonts/truetype/noto/NotoSansCJKjp-Regular.ttf",
     "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf",
@@ -150,35 +156,39 @@ static const char* FONT_CANDIDATES[] = {
     nullptr
 };
 
-static bool load_font_file(const char* path, int ptsize, TTF_Font** out)
+static bool load_font_file(
+        const char* path, int face, int ptsize, TTF_Font** out)
 {
     if (access(path, R_OK) != 0)
         return false;
-    TTF_Font* font = TTF_OpenFont(path, ptsize);
+    TTF_Font* font = TTF_OpenFontIndex(path, ptsize, face);
     if (!font)
         return false;
 
-    printf("[sim] Loaded font: %s\n", path);
+    printf("[sim] Loaded font: %s (face %d)\n", path, face);
+    g_font_path = path;
+    g_font_face = face;
     *out = font;
     return true;
 }
 
 static bool load_font_via_fc_match(int ptsize, TTF_Font** out)
 {
-    FILE* pipe = popen("fc-match -s -f '%{file}\\n' :lang=ja", "r");
+    FILE* pipe = popen("fc-match -s -f '%{file}\\t%{index}\\n' :lang=zh-cn", "r");
     if (!pipe)
         return false;
 
     char path[1024];
     while (fgets(path, sizeof(path), pipe))
     {
-        size_t len = strlen(path);
-        if (len == 0)
+        char* index = strrchr(path, '\t');
+        if (!index)
             continue;
-        if (path[len - 1] == '\n')
-            path[len - 1] = '\0';
+        *index++ = '\0';
 
-        if (load_font_file(path, ptsize, out))
+        // Fontconfig encodes named variation instances above the face number.
+        const int face = static_cast<int>(strtoul(index, nullptr, 10) & 0xffff);
+        if (load_font_file(path, face, ptsize, out))
         {
             pclose(pipe);
             return true;
@@ -197,13 +207,19 @@ static TTF_Font* load_best_font(int ptsize)
 
     for (int i = 0; FONT_CANDIDATES[i]; ++i)
     {
-        if (load_font_file(FONT_CANDIDATES[i], ptsize, &font))
+        if (load_font_file(FONT_CANDIDATES[i], 0, ptsize, &font))
             return font;
     }
 
     // fall back to whatever TTF_OpenFont can find
     fprintf(stderr, "[sim] WARNING: no preferred font found; text will be blank\n");
     return nullptr;
+}
+
+const char* sim_font_path(int* face_index)
+{
+    *face_index = g_font_face;
+    return g_font_path.c_str();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -305,10 +321,10 @@ int pkgi_update(pkgi_input* input)
                          !g_ime_input.empty())
                 {
                     // Remove last UTF-8 character
-                    g_ime_input.pop_back();
-                    while (!g_ime_input.empty() &&
-                           (g_ime_input.back() & 0xC0) == 0x80)
-                        g_ime_input.pop_back();
+                    auto end = g_ime_input.size() - 1;
+                    while (end > 0 && (g_ime_input[end] & 0xc0) == 0x80)
+                        --end;
+                    g_ime_input.resize(end);
                 }
                 break; // do NOT fall through to button mapper
             }
@@ -400,7 +416,7 @@ void pkgi_draw_rect(int x, int y, int w, int h, uint32_t color)
     SDL_RenderFillRect(g_sdl_renderer, &r);
 }
 
-void pkgi_draw_text(int x, int y, uint32_t color, const char* text)
+void pkgi_draw_text(int x, int y, uint32_t color, const char* text, bool)
 {
     pkgi_draw_text_scale(x, y, color, text, 1.f);
 }

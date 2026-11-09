@@ -70,6 +70,7 @@ extern "C"
 }
 
 static vita2d_pgf* g_font;
+static vita2d_pvf* g_chinese_font;
 
 static SceKernelLwMutexWork g_dialog_lock;
 static volatile int g_power_lock;
@@ -684,13 +685,13 @@ void pkgi_start(void)
     }
 
     vita2d_init_advanced(4 * 1024 * 1024);
-    vita2d_system_pgf_config pgf_confs[4] = {
+    const vita2d_system_pgf_config pgf_confs[] = {
             {SCE_FONT_LANGUAGE_JAPANESE, pkgi_is_japanese_char},
             {SCE_FONT_LANGUAGE_KOREAN, pkgi_is_korean_char},
             {SCE_FONT_LANGUAGE_LATIN, pkgi_is_latin_char},
-            {SCE_FONT_LANGUAGE_DEFAULT, NULL},
     };
     g_font = vita2d_load_system_pgf(3, pgf_confs);
+    g_chinese_font = vita2d_load_custom_pvf("sa0:/data/font/pvf/cn0.pvf");
 
     g_time = sceKernelGetProcessTimeWide();
 
@@ -763,6 +764,8 @@ void pkgi_end(void)
 
     vita2d_fini();
     vita2d_free_pgf(g_font);
+    if (g_chinese_font)
+        vita2d_free_pvf(g_chinese_font);
 
     scePromoterUtilityExit();
 
@@ -990,9 +993,14 @@ void pkgi_draw_rect(int x, int y, int w, int h, uint32_t color)
             (float)x, (float)y, (float)w, (float)h, VITA_COLOR(color));
 }
 
-void pkgi_draw_text(int x, int y, uint32_t color, const char* text)
+void pkgi_draw_text(
+        int x, int y, uint32_t color, const char* text, bool localized)
 {
-    vita2d_pgf_draw_text(g_font, x, y + 20, VITA_COLOR(color), 1.f, text);
+    if (localized && g_chinese_font)
+        vita2d_pvf_draw_text(
+                g_chinese_font, x, y + 20, VITA_COLOR(color), 1.f, text);
+    else
+        vita2d_pgf_draw_text(g_font, x, y + 20, VITA_COLOR(color), 1.f, text);
 }
 
 void pkgi_draw_text_scale(int x, int y, uint32_t color, const char* text, float scale)

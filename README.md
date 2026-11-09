@@ -51,6 +51,10 @@ Use the Home screen to choose a content section, then select an item to open its
 
 For general PKGj usage, TSV sources, search/filter behavior, and base download flow details, see the [upstream PKGj repository][pkgj_upstream].
 
+## 简体中文游戏名
+
+游戏网格、列表和详情优先显示内置的简体中文游戏名。词表按游戏 ID 匹配，收录 PS Vita、PSP 和 PS1 共 808 个游戏编号。词表未收录的游戏保留目录原名。可以用中文名、原名或游戏 ID 搜索。
+
 ## Cover art
 
 The PS Vita, PSP and PSX games lists are browsed as a grid of cover art by default instead of the plain text list — toggle **"Grid view (games)"** in the triangle options menu to switch back.

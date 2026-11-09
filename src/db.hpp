@@ -69,6 +69,12 @@ struct DbItem
 
     // Fetched live from the PlayStation Store (not persisted to DB)
     std::string description;
+    std::string localized_name;
+
+    const std::string& display_name() const
+    {
+        return localized_name.empty() ? name : localized_name;
+    }
 };
 
 enum GameRegion

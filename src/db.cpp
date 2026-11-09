@@ -3,6 +3,7 @@
 #include "file.hpp"
 #include "pkgi.hpp"
 #include "sha256.hpp"
+#include "title_names.hpp"
 #include "utils.hpp"
 
 #include <fmt/format.h>
@@ -364,7 +365,7 @@ bool lower(const DbItem& a, const DbItem& b, DbSort sort, DbSortOrder order)
     else if (sort == SortByRegion)
         cmp = reg_a - reg_b;
     else if (sort == SortByName)
-        cmp = pkgi_stricmp(a.name.c_str(), b.name.c_str());
+        cmp = pkgi_stricmp(a.display_name().c_str(), b.display_name().c_str());
     else if (sort == SortBySize)
         cmp = a.size - b.size;
     else if (sort == SortByDate)
@@ -380,6 +381,19 @@ bool lower(const DbItem& a, const DbItem& b, DbSort sort, DbSortOrder order)
         cmp = -cmp;
 
     return cmp < 0;
+}
+
+std::string format_display_name(
+        const std::string& name,
+        const std::string& app_version,
+        const std::string& fw_version)
+{
+    std::string full_name = name;
+    if (!app_version.empty())
+        full_name = fmt::format("{} ({})", full_name, app_version);
+    if (!name.empty() && name.back() != ']' && fw_version > "3.60")
+        full_name = fmt::format("{} [{}]", full_name, fw_version);
+    return full_name;
 }
 }
 
@@ -452,8 +466,16 @@ void TitleDatabase::reload(
             if (filter_by_region && !regions.count(region))
                 continue;
 
+            const char* localized_name =
+                    mode == ModeGames || mode == ModePspGames ||
+                            mode == ModePsxGames
+                    ? title_names::find(titleid)
+                    : "";
+
             if (!search.empty() &&
                 !pkgi_stricontains(name.c_str(), search.c_str()) &&
+                !pkgi_stricontains(localized_name, search.c_str()) &&
+                !pkgi_stricontains(name_org, search.c_str()) &&
                 !pkgi_stricontains(titleid.c_str(), search.c_str()))
                 continue;
 
@@ -467,12 +489,6 @@ void TitleDatabase::reload(
             else
                 bdigest = false;
 
-            std::string full_name = name;
-            if (!app_version.empty())
-                full_name = fmt::format("{} ({})", name, app_version);
-            if (!name.empty() && name.back() != ']' && fw_version > "3.60")
-                full_name = fmt::format("{} [{}]", full_name, fw_version);
-
             if (!(region_filter & DbFilterInstalled) ||
                 installed_games.find(titleid) != installed_games.end())
                 db.push_back(DbItem{
@@ -480,7 +496,7 @@ void TitleDatabase::reload(
                         titleid,
                         content,
                         0,
-                        full_name,
+                        format_display_name(name, app_version, fw_version),
                         name_org ? name_org : "",
                         zrif ? zrif : "",
                         url,
@@ -492,6 +508,12 @@ void TitleDatabase::reload(
                         fw_version,
                         /*selected=*/false,
                         /*description=*/"",
+                        *localized_name
+                                ? format_display_name(
+                                          localized_name,
+                                          app_version,
+                                          fw_version)
+                                : "",
                 });
         }
         catch (const std::exception& e)

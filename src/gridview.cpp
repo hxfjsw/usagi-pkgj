@@ -192,7 +192,12 @@ std::string truncate_to_width(const std::string& text, float max_w)
     std::string s = text;
     while (!s.empty() &&
            ImGui::CalcTextSize((s + "...").c_str()).x > max_w)
-        s.pop_back();
+    {
+        auto end = s.size() - 1;
+        while (end > 0 && (static_cast<unsigned char>(s[end]) & 0xc0) == 0x80)
+            --end;
+        s.resize(end);
+    }
     return s.empty() ? s : s + "...";
 }
 
@@ -357,7 +362,8 @@ void draw_cell(
         dl->AddImage(reinterpret_cast<ImTextureID>(flag_tex), fmin, fmax);
     }
 
-    const std::string title = truncate_to_width(item->name, cell_w - 4.f);
+    const std::string title =
+            truncate_to_width(item->display_name(), cell_w - 4.f);
     const ImVec2 tsz         = ImGui::CalcTextSize(title.c_str());
     dl->AddText(
             ImVec2(cell_min.x + (cell_w - tsz.x) * 0.5f, cov_max.y + 2.f),
