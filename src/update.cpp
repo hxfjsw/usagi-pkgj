@@ -135,31 +135,11 @@ void update_thread()
 
         LOGF("Checking for updates at: {}", PKGJ_RELEASES_API);
 
-        // Fetch the GitHub Releases JSON
-        CurlHttp http;
+        // The startup check shares the curl lock with cover downloads.
+        CurlHttp http(CurlHttp::Options{3, 5, 256 * 1024});
         http.start(PKGJ_RELEASES_API, 0);
-
-        constexpr size_t MAX_BYTES = 256 * 1024;
-        std::vector<uint8_t> buf;
-        buf.reserve(32 * 1024);
-        size_t pos = 0;
-        while (true)
-        {
-            if (pos == buf.size())
-                buf.resize(pos + 4096);
-            int64_t n = 0;
-            try { n = http.read(buf.data() + pos, buf.size() - pos); }
-            catch (...) { break; }
-            if (n == 0)
-                break;
-            pos += static_cast<size_t>(n);
-            if (pos > MAX_BYTES)
-                break;
-        }
-        buf.resize(pos);
-
-        const std::string json(
-                reinterpret_cast<const char*>(buf.data()), buf.size());
+        const auto& body = http.body();
+        const std::string json(body.begin(), body.end());
 
         // Parse tag_name (e.g. "v0.60") and the .vpk download URL
         const auto tag = extract_json_str(json, "tag_name");
