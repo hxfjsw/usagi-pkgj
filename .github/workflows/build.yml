@@ -39,3 +39,4 @@ jobs:
         with:
           name: UsagiPKGJ.vpk
           path: ci/build/UsagiPKGJ.vpk
+          if-no-files-found: error
